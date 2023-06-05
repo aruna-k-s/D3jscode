@@ -19,78 +19,121 @@
   <script src="https://d3js.org/d3.v6.min.js"></script>
   <script>
     // D3.js code goes here
-    // ...
+  
 
-    // Set up the SVG container
-var width = 600;
-var height = 400;
-var svg = d3.select("body")
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+             
+
+             // Set up the dimensions for the scatterplot
+const width = 600;
+const height = 400;
+const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+const innerWidth = width - margin.left - margin.right;
+const innerHeight = height - margin.top - margin.bottom;
+
+// Create an SVG element
+const svg = d3.select("body")
   .append("svg")
   .attr("width", width)
   .attr("height", height);
 
-// Set up the scales
-var xScale = d3.scaleLinear()
-  .range([50, width - 50]);
+// Create a group element and translate it to have the margins
+const g = svg.append("g")
+  .attr("transform", `translate(${margin.left},${margin.top})`);
 
-var yScale = d3.scaleLinear()
-  .range([height - 50, 50]);
-
-var rScale = d3.scaleSqrt()
-  .range([3, 15]);
-
-// Set up the axes
-var xAxis = d3.axisBottom(xScale);
-var yAxis = d3.axisLeft(yScale);
-
-// Load the data from the CSV file
-d3.csv("data.csv").then(function(data) {
-  // Convert string data to numbers
-  data.forEach(function(d) {
+// Read the CSV data
+d3.csv("data.csv").then(data => {
+  // Parse the numeric values
+  data.forEach(d => {
     d.density = +d.density;
     d.population = +d.population;
-    d.growth = +d.growth;
+    d.population_growth = +d.population_growth;
   });
 
-  // Update the scales with the data domain
-  xScale.domain(d3.extent(data, function(d) { return d.density; }));
-  yScale.domain(d3.extent(data, function(d) { return d.growth; }));
-  rScale.domain(d3.extent(data, function(d) { return d.population; }));
+  // Get the unique years from the data
+  const years = Array.from(new Set(data.map(d => d.year)));
 
-  // Add the bubbles to the scatter plot
-  svg.selectAll("circle")
-    .data(data)
+  // Create a dropdown for the year filter
+  const yearDropdown = d3.select("body")
+    .append("select")
+    .on("change", function() {
+      const selectedYear = this.value;
+      updateScatterplot(selectedYear);
+    });
+
+  yearDropdown.selectAll("option")
+    .data(years)
     .enter()
-    .append("circle")
-    .attr("cx", function(d) { return xScale(d.density); })
-    .attr("cy", function(d) { return yScale(d.growth); })
-    .attr("r", function(d) { return rScale(d.population); })
-    .style("fill", "steelblue");
+    .append("option")
+    .text(d => d);
 
-  // Add the x-axis
-  svg.append("g")
-    .attr("class", "x-axis")
-    .attr("transform", "translate(0," + (height - 50) + ")")
-    .call(xAxis)
-    .append("text")
-    .attr("class", "axis-label")
-    .attr("x", width - 50)
-    .attr("y", -10)
-    .style("text-anchor", "end")
-    .text("Density");
+  // Create scales for the x and y axes
+  const xScale = d3.scaleLinear()
+    .domain(d3.extent(data, d => d.density))
+    .range([0, innerWidth]);
 
-  // Add the y-axis
-  svg.append("g")
-    .attr("class", "y-axis")
-    .attr("transform", "translate(50,0)")
-    .call(yAxis)
-    .append("text")
-    .attr("class", "axis-label")
-    .attr("x", 10)
-    .attr("y", 10)
-    .style("text-anchor", "start")
-    .text("Population Growth");
-});
+  const yScale = d3.scaleLinear()
+    .domain(d3.extent(data, d => d.population_growth))
+    .range([innerHeight, 0]);
+
+  // Create a scale for the bubble sizes based on population
+  const bubbleScale = d3.scaleLinear()
+    .domain(d3.extent(data, d => d.population))
+    .range([3, 15]);
+
+  // Create x and y axes
+  const xAxis = d3.axisBottom(xScale)
+    .ticks(5);
+
+  const yAxis = d3.axisLeft(yScale)
+    .ticks(5);
+
+  // Add the x axis to the SVG
+  g.append("g")
+    .attr("transform", `translate(0,${innerHeight})`)
+    .call(xAxis);
+
+  // Add the y axis to the SVG
+  g.append("g")
+    .call(yAxis);
+
+  // Define a function to update the scatterplot based on the selected year
+  function updateScatterplot(year) {
+    // Filter the data for the selected year
+    const filteredData = data.filter(d => d.year === year);
+
+    // Create/update the scatterplot circles
+    const circles = g.selectAll("circle")
+      .data(filteredData, d => d.density);
+
+    // Enter new circles
+    circles.enter()
+      .append("circle")
+      .attr("cx", d => xScale(d.density))
+      .attr("cy", d => yScale(d.population_growth))
+      .attr("r", d => bubbleScale(d.population))
+      .attr("fill", "steelblue")
+      .on("mouseover", function(d) {
+        // Show country name and details on mouseover
+        tooltip.style("visibility", "visible")
+          .html(`Country: ${d.country}<br>Population: ${d.population}<br>Growth: ${d.population_growth}`);
+
+
+
 
   </script>
 </body>
